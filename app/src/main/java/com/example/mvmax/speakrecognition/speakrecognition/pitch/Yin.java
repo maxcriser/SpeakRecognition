@@ -2,174 +2,132 @@ package com.example.mvmax.speakrecognition.speakrecognition.pitch;
 
 public final class Yin implements PitchDetector {
 
-	private static final double DEFAULT_THRESHOLD = 0.20;
+    private static final double DEFAULT_THRESHOLD = 0.20;
 
-	public static final int DEFAULT_BUFFER_SIZE = 2048;
+    private final double threshold;
 
-	public static final int DEFAULT_OVERLAP = 1536;
+    private final float sampleRate;
 
-	private final double threshold;
+    private final float[] yinBuffer;
 
-	private final float sampleRate;
+    private final PitchDetectionResult result;
 
-	private final float[] yinBuffer;
-	
-	private final PitchDetectionResult result;
+    Yin(final float audioSampleRate, final int bufferSize) {
+        this(audioSampleRate, bufferSize, DEFAULT_THRESHOLD);
+    }
 
-	public Yin(final float audioSampleRate, final int bufferSize) {
-		this(audioSampleRate, bufferSize, DEFAULT_THRESHOLD);
-	}
+    private Yin(final float audioSampleRate, final int bufferSize, final double yinThreshold) {
+        this.sampleRate = audioSampleRate;
+        this.threshold = yinThreshold;
+        yinBuffer = new float[bufferSize / 2];
+        result = new PitchDetectionResult();
+    }
 
-	public Yin(final float audioSampleRate, final int bufferSize, final double yinThreshold) {
-		this.sampleRate = audioSampleRate;
-		this.threshold = yinThreshold;
-		yinBuffer = new float[bufferSize / 2];
-		result = new PitchDetectionResult();
-	}
+    public PitchDetectionResult getPitch(final float[] audioBuffer) {
 
-	public PitchDetectionResult getPitch(final float[] audioBuffer) {
+        final int tauEstimate;
+        final float pitchInHertz;
 
-		final int tauEstimate;
-		final float pitchInHertz;
+        difference(audioBuffer);
 
-		difference(audioBuffer);
+        cumulativeMeanNormalizedDifference();
 
-		cumulativeMeanNormalizedDifference();
+        tauEstimate = absoluteThreshold();
 
-		tauEstimate = absoluteThreshold();
+        if (tauEstimate != -1) {
+            final float betterTau = parabolicInterpolation(tauEstimate);
 
-		if (tauEstimate != -1) {
-			final float betterTau = parabolicInterpolation(tauEstimate);
+            pitchInHertz = sampleRate / betterTau;
+        } else {
+            pitchInHertz = -1;
+        }
 
-			pitchInHertz = sampleRate / betterTau;
-		} else{
-			pitchInHertz = -1;
-		}
-		
-		result.setPitch(pitchInHertz);
+        result.setPitch(pitchInHertz);
 
-		return result;
-	}
+        return result;
+    }
 
-	private void difference(final float[] audioBuffer) {
-		int index, tau;
-		float delta;
-		for (tau = 0; tau < yinBuffer.length; tau++) {
-			yinBuffer[tau] = 0;
-		}
-		for (tau = 1; tau < yinBuffer.length; tau++) {
-			for (index = 0; index < yinBuffer.length; index++) {
-				delta = audioBuffer[index] - audioBuffer[index + tau];
-				yinBuffer[tau] += delta * delta;
-			}
-		}
-	}
+    private void difference(final float[] audioBuffer) {
+        int index, tau;
+        float delta;
+        for (tau = 0; tau < yinBuffer.length; tau++) {
+            yinBuffer[tau] = 0;
+        }
+        for (tau = 1; tau < yinBuffer.length; tau++) {
+            for (index = 0; index < yinBuffer.length; index++) {
+                delta = audioBuffer[index] - audioBuffer[index + tau];
+                yinBuffer[tau] += delta * delta;
+            }
+        }
+    }
 
-	/**
-	 * The cumulative mean normalized difference function as described in step 3
-	 * of the YIN paper. <br>
-	 * <code>
-	 * yinBuffer[0] == yinBuffer[1] = 1
-	 * </code>
-	 */
-	private void cumulativeMeanNormalizedDifference() {
-		int tau;
-		yinBuffer[0] = 1;
-		float runningSum = 0;
-		for (tau = 1; tau < yinBuffer.length; tau++) {
-			runningSum += yinBuffer[tau];
-			yinBuffer[tau] *= tau / runningSum;
-		}
-	}
+    private void cumulativeMeanNormalizedDifference() {
+        int tau;
+        yinBuffer[0] = 1;
+        float runningSum = 0;
+        for (tau = 1; tau < yinBuffer.length; tau++) {
+            runningSum += yinBuffer[tau];
+            yinBuffer[tau] *= tau / runningSum;
+        }
+    }
 
-	/**
-	 * Implements step 4 of the AUBIO_YIN paper.
-	 */
-	private int absoluteThreshold() {
-		// Uses another loop construct
-		// than the AUBIO implementation
-		int tau;
-		// first two positions in yinBuffer are always 1
-		// So start at the third (index 2)
-		for (tau = 2; tau < yinBuffer.length; tau++) {
-			if (yinBuffer[tau] < threshold) {
-				while (tau + 1 < yinBuffer.length && yinBuffer[tau + 1] < yinBuffer[tau]) {
-					tau++;
-				}
-				// found tau, exit loop and return
-				// store the probability
-				// From the YIN paper: The threshold determines the list of
-				// candidates admitted to the set, and can be interpreted as the
-				// proportion of aperiodic power tolerated
-				// within a periodic signal.
-				//
-				// Since we want the periodicity and and not aperiodicity:
-				// periodicity = 1 - aperiodicity
-				result.setProbability(1 - yinBuffer[tau]);
-				break;
-			}
-		}
+    private int absoluteThreshold() {
+        int tau;
+        for (tau = 2; tau < yinBuffer.length; tau++) {
+            if (yinBuffer[tau] < threshold) {
+                while (tau + 1 < yinBuffer.length && yinBuffer[tau + 1] < yinBuffer[tau]) {
+                    tau++;
+                }
+                result.setProbability(1 - yinBuffer[tau]);
+                break;
+            }
+        }
 
-		
-		// if no pitch found, tau => -1
-		if (tau == yinBuffer.length || yinBuffer[tau] >= threshold) {
-			tau = -1;
-			result.setProbability(0);
-			result.setPitched(false);	
-		} else {
-			result.setPitched(true);
-		}
+        if (tau == yinBuffer.length || yinBuffer[tau] >= threshold) {
+            tau = -1;
+            result.setProbability(0);
+            result.setPitched(false);
+        } else {
+            result.setPitched(true);
+        }
 
-		return tau;
-	}
+        return tau;
+    }
 
-	/**
-	 * Implements step 5 of the AUBIO_YIN paper. It refines the estimated tau
-	 * value using parabolic interpolation. This is needed to detect higher
-	 * frequencies more precisely. See http://fizyka.umk.pl/nrbook/c10-2.pdf and
-	 * for more background
-	 * http://fedc.wiwi.hu-berlin.de/xplore/tutorials/xegbohtmlnode62.html
-	 * 
-	 * @param tauEstimate
-	 *            The estimated tau value.
-	 * @return A better, more precise tau value.
-	 */
-	private float parabolicInterpolation(final int tauEstimate) {
-		final float betterTau;
-		final int x0;
-		final int x2;
+    private float parabolicInterpolation(final int tauEstimate) {
+        final float betterTau;
+        final int x0;
+        final int x2;
 
-		if (tauEstimate < 1) {
-			x0 = tauEstimate;
-		} else {
-			x0 = tauEstimate - 1;
-		}
-		if (tauEstimate + 1 < yinBuffer.length) {
-			x2 = tauEstimate + 1;
-		} else {
-			x2 = tauEstimate;
-		}
-		if (x0 == tauEstimate) {
-			if (yinBuffer[tauEstimate] <= yinBuffer[x2]) {
-				betterTau = tauEstimate;
-			} else {
-				betterTau = x2;
-			}
-		} else if (x2 == tauEstimate) {
-			if (yinBuffer[tauEstimate] <= yinBuffer[x0]) {
-				betterTau = tauEstimate;
-			} else {
-				betterTau = x0;
-			}
-		} else {
-			float s0, s1, s2;
-			s0 = yinBuffer[x0];
-			s1 = yinBuffer[tauEstimate];
-			s2 = yinBuffer[x2];
-			// fixed AUBIO implementation, thanks to Karl Helgason:
-			// (2.0f * s1 - s2 - s0) was incorrectly multiplied with -1
-			betterTau = tauEstimate + (s2 - s0) / (2 * (2 * s1 - s2 - s0));
-		}
-		return betterTau;
-	}
+        if (tauEstimate < 1) {
+            x0 = tauEstimate;
+        } else {
+            x0 = tauEstimate - 1;
+        }
+        if (tauEstimate + 1 < yinBuffer.length) {
+            x2 = tauEstimate + 1;
+        } else {
+            x2 = tauEstimate;
+        }
+        if (x0 == tauEstimate) {
+            if (yinBuffer[tauEstimate] <= yinBuffer[x2]) {
+                betterTau = tauEstimate;
+            } else {
+                betterTau = x2;
+            }
+        } else if (x2 == tauEstimate) {
+            if (yinBuffer[tauEstimate] <= yinBuffer[x0]) {
+                betterTau = tauEstimate;
+            } else {
+                betterTau = x0;
+            }
+        } else {
+            float s0, s1, s2;
+            s0 = yinBuffer[x0];
+            s1 = yinBuffer[tauEstimate];
+            s2 = yinBuffer[x2];
+            betterTau = tauEstimate + (s2 - s0) / (2 * (2 * s1 - s2 - s0));
+        }
+        return betterTau;
+    }
 }

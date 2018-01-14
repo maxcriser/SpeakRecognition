@@ -1,51 +1,3 @@
-/*
-*      _______                       _____   _____ _____  
-*     |__   __|                     |  __ \ / ____|  __ \ 
-*        | | __ _ _ __ ___  ___  ___| |  | | (___ | |__) |
-*        | |/ _` | '__/ __|/ _ \/ __| |  | |\___ \|  ___/ 
-*        | | (_| | |  \__ \ (_) \__ \ |__| |____) | |     
-*        |_|\__,_|_|  |___/\___/|___/_____/|_____/|_|     
-*                                                         
-* -------------------------------------------------------------
-*
-* TarsosDSP is developed by Joren Six at IPEM, University Ghent
-*  
-* -------------------------------------------------------------
-*
-*  Info: http://0110.be/tag/TarsosDSP
-*  Github: https://github.com/JorenSix/TarsosDSP
-*  Releases: http://0110.be/releases/TarsosDSP/
-*  
-*  TarsosDSP includes modified source code by various authors,
-*  for credits and info, see README.
-* 
-*/
-
-
-/*
- * Copyright 2007 Sun Microsystems, Inc.  All Rights Reserved.
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
- *
- * This code is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Sun designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Sun in the LICENSE file that accompanied this code.
- *
- * This code is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * version 2 for more details (a copy is included in the LICENSE file that
- * accompanied this code).
- *
- * You should have received a copy of the GNU General Public License version
- * 2 along with this work; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
- */
 package com.example.mvmax.speakrecognition.speakrecognition.io;
 
 import java.nio.ByteBuffer;
@@ -53,63 +5,48 @@ import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 
-/**
- * This class is used to convert between 8,16,24,32,32+ bit signed/unsigned
- * big/litle endian fixed/floating point byte buffers and float buffers.
- * 
- * @author Karl Helgason
- */
 public abstract class TarsosDSPAudioFloatConverter {
 
-    public static final TarsosDSPAudioFormat.Encoding PCM_FLOAT = new TarsosDSPAudioFormat.Encoding("PCM_FLOAT");
-
-    /***************************************************************************
-     * 
-     * LSB Filter, used filter least significant byte in samples arrays.
-     * 
-     * Is used filter out data in lsb byte when SampleSizeInBits is not
-     * dividable by 8.
-     * 
-     **************************************************************************/
+    private static final TarsosDSPAudioFormat.Encoding PCM_FLOAT = new TarsosDSPAudioFormat.Encoding("PCM_FLOAT");
 
     private static class AudioFloatLSBFilter extends TarsosDSPAudioFloatConverter {
 
         private final TarsosDSPAudioFloatConverter converter;
 
-        final private int offset;
+        private final int offset;
 
-        final private int stepsize;
+        private final int stepsize;
 
-        final private byte mask;
+        private final byte mask;
 
         private byte[] mask_buffer;
 
-        public AudioFloatLSBFilter(final TarsosDSPAudioFloatConverter converter,
-                                   final TarsosDSPAudioFormat format) {
+        AudioFloatLSBFilter(final TarsosDSPAudioFloatConverter converter, final TarsosDSPAudioFormat format) {
             final int bits = format.getSampleSizeInBits();
             final boolean bigEndian = format.isBigEndian();
             this.converter = converter;
             stepsize = (bits + 7) / 8;
             offset = bigEndian ? (stepsize - 1) : 0;
             final int lsb_bits = bits % 8;
-            if (lsb_bits == 0)
+            if (lsb_bits == 0) {
                 mask = (byte) 0x00;
-            else if (lsb_bits == 1)
+            } else if (lsb_bits == 1) {
                 mask = (byte) 0x80;
-            else if (lsb_bits == 2)
+            } else if (lsb_bits == 2) {
                 mask = (byte) 0xC0;
-            else if (lsb_bits == 3)
+            } else if (lsb_bits == 3) {
                 mask = (byte) 0xE0;
-            else if (lsb_bits == 4)
+            } else if (lsb_bits == 4) {
                 mask = (byte) 0xF0;
-            else if (lsb_bits == 5)
+            } else if (lsb_bits == 5) {
                 mask = (byte) 0xF8;
-            else if (lsb_bits == 6)
+            } else if (lsb_bits == 6) {
                 mask = (byte) 0xFC;
-            else if (lsb_bits == 7)
+            } else if (lsb_bits == 7) {
                 mask = (byte) 0xFE;
-            else
+            } else {
                 mask = (byte) 0xFF;
+            }
         }
 
         public byte[] toByteArray(final float[] in_buff, final int in_offset, final int in_len,
@@ -127,8 +64,9 @@ public abstract class TarsosDSPAudioFloatConverter {
 
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
-            if (mask_buffer == null || mask_buffer.length < in_buff.length)
+            if (mask_buffer == null || mask_buffer.length < in_buff.length) {
                 mask_buffer = new byte[in_buff.length];
+            }
             System.arraycopy(in_buff, 0, mask_buffer, 0, in_buff.length);
             final int in_offset_end = out_len * stepsize;
             for (int i = in_offset + offset; i < in_offset_end; i += stepsize) {
@@ -141,19 +79,13 @@ public abstract class TarsosDSPAudioFloatConverter {
 
     }
 
-    /***************************************************************************
-     * 
-     * 64 bit float, little/big-endian
-     * 
-     **************************************************************************/
-
-    // PCM 64 bit float, little-endian
     private static class AudioFloatConversion64L extends TarsosDSPAudioFloatConverter {
-        ByteBuffer bytebuffer = null;
 
-        DoubleBuffer floatbuffer = null;
+        ByteBuffer bytebuffer;
 
-        double[] double_buff = null;
+        DoubleBuffer floatbuffer;
+
+        double[] double_buff;
 
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
@@ -167,8 +99,9 @@ public abstract class TarsosDSPAudioFloatConverter {
             floatbuffer.position(0);
             bytebuffer.put(in_buff, in_offset, in_len);
             if (double_buff == null
-                    || double_buff.length < out_len + out_offset)
+                    || double_buff.length < out_len + out_offset) {
                 double_buff = new double[out_len + out_offset];
+            }
             floatbuffer.get(double_buff, out_offset, out_len);
             final int out_offset_end = out_offset + out_len;
             for (int i = out_offset; i < out_offset_end; i++) {
@@ -187,8 +120,9 @@ public abstract class TarsosDSPAudioFloatConverter {
             }
             floatbuffer.position(0);
             bytebuffer.position(0);
-            if (double_buff == null || double_buff.length < in_offset + in_len)
+            if (double_buff == null || double_buff.length < in_offset + in_len) {
                 double_buff = new double[in_offset + in_len];
+            }
             final int in_offset_end = in_offset + in_len;
             for (int i = in_offset; i < in_offset_end; i++) {
                 double_buff[i] = in_buff[i];
@@ -199,13 +133,13 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 64 bit float, big-endian
     private static class AudioFloatConversion64B extends TarsosDSPAudioFloatConverter {
-        ByteBuffer bytebuffer = null;
 
-        DoubleBuffer floatbuffer = null;
+        ByteBuffer bytebuffer;
 
-        double[] double_buff = null;
+        DoubleBuffer floatbuffer;
+
+        double[] double_buff;
 
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
@@ -219,8 +153,9 @@ public abstract class TarsosDSPAudioFloatConverter {
             floatbuffer.position(0);
             bytebuffer.put(in_buff, in_offset, in_len);
             if (double_buff == null
-                    || double_buff.length < out_len + out_offset)
+                    || double_buff.length < out_len + out_offset) {
                 double_buff = new double[out_len + out_offset];
+            }
             floatbuffer.get(double_buff, out_offset, out_len);
             final int out_offset_end = out_offset + out_len;
             for (int i = out_offset; i < out_offset_end; i++) {
@@ -239,8 +174,9 @@ public abstract class TarsosDSPAudioFloatConverter {
             }
             floatbuffer.position(0);
             bytebuffer.position(0);
-            if (double_buff == null || double_buff.length < in_offset + in_len)
+            if (double_buff == null || double_buff.length < in_offset + in_len) {
                 double_buff = new double[in_offset + in_len];
+            }
             final int in_offset_end = in_offset + in_len;
             for (int i = in_offset; i < in_offset_end; i++) {
                 double_buff[i] = in_buff[i];
@@ -251,17 +187,11 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    /***************************************************************************
-     * 
-     * 32 bit float, little/big-endian
-     * 
-     **************************************************************************/
-
-    // PCM 32 bit float, little-endian
     private static class AudioFloatConversion32L extends TarsosDSPAudioFloatConverter {
-        ByteBuffer bytebuffer = null;
 
-        FloatBuffer floatbuffer = null;
+        ByteBuffer bytebuffer;
+
+        FloatBuffer floatbuffer;
 
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
@@ -294,11 +224,11 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 32 bit float, big-endian
     private static class AudioFloatConversion32B extends TarsosDSPAudioFloatConverter {
-        ByteBuffer bytebuffer = null;
 
-        FloatBuffer floatbuffer = null;
+        ByteBuffer bytebuffer;
+
+        FloatBuffer floatbuffer;
 
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
@@ -331,20 +261,15 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    /***************************************************************************
-     * 
-     * 8 bit signed/unsigned
-     * 
-     **************************************************************************/
-
-    // PCM 8 bit, signed
     private static class AudioFloatConversion8S extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
             int ox = out_offset;
-            for (int i = 0; i < out_len; i++)
+            for (int i = 0; i < out_len; i++) {
                 out_buff[ox++] = in_buff[ix++] * (1.0f / 127.0f);
+            }
             return out_buff;
         }
 
@@ -352,21 +277,23 @@ public abstract class TarsosDSPAudioFloatConverter {
                                   final byte[] out_buff, final int out_offset) {
             int ix = in_offset;
             int ox = out_offset;
-            for (int i = 0; i < in_len; i++)
+            for (int i = 0; i < in_len; i++) {
                 out_buff[ox++] = (byte) (in_buff[ix++] * 127.0f);
+            }
             return out_buff;
         }
     }
 
-    // PCM 8 bit, unsigned
     private static class AudioFloatConversion8U extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
             int ox = out_offset;
-            for (int i = 0; i < out_len; i++)
+            for (int i = 0; i < out_len; i++) {
                 out_buff[ox++] = ((in_buff[ix++] & 0xFF) - 127)
                         * (1.0f / 127.0f);
+            }
             return out_buff;
         }
 
@@ -374,27 +301,22 @@ public abstract class TarsosDSPAudioFloatConverter {
                                   final byte[] out_buff, final int out_offset) {
             int ix = in_offset;
             int ox = out_offset;
-            for (int i = 0; i < in_len; i++)
+            for (int i = 0; i < in_len; i++) {
                 out_buff[ox++] = (byte) (127 + in_buff[ix++] * 127.0f);
+            }
             return out_buff;
         }
     }
 
-    /***************************************************************************
-     * 
-     * 16 bit signed/unsigned, little/big-endian
-     * 
-     **************************************************************************/
-
-    // PCM 16 bit, signed, little-endian
     private static class AudioFloatConversion16SL extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
             final int len = out_offset + out_len;
             for (int ox = out_offset; ox < len; ox++) {
-                out_buff[ox] = ((short) ((in_buff[ix++] & 0xFF) | 
-                           (in_buff[ix++] << 8))) * (1.0f / 32767.0f);
+                out_buff[ox] = ((short) ((in_buff[ix++] & 0xFF) |
+                        (in_buff[ix++] << 8))) * (1.0f / 32767.0f);
             }
 
             return out_buff;
@@ -413,14 +335,14 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 16 bit, signed, big-endian
     private static class AudioFloatConversion16SB extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < out_len; i++) {
-                out_buff[ox++] = ((short) ((in_buff[ix++] << 8) | 
+                out_buff[ox++] = ((short) ((in_buff[ix++] << 8) |
                         (in_buff[ix++] & 0xFF))) * (1.0f / 32767.0f);
             }
             return out_buff;
@@ -439,8 +361,8 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 16 bit, unsigned, little-endian
     private static class AudioFloatConversion16UL extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
@@ -465,8 +387,8 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 16 bit, unsigned, big-endian
     private static class AudioFloatConversion16UB extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
@@ -491,14 +413,8 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    /***************************************************************************
-     * 
-     * 24 bit signed/unsigned, little/big-endian
-     * 
-     **************************************************************************/
-
-    // PCM 24 bit, signed, little-endian
     private static class AudioFloatConversion24SL extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
@@ -506,9 +422,10 @@ public abstract class TarsosDSPAudioFloatConverter {
             for (int i = 0; i < out_len; i++) {
                 int x = (in_buff[ix++] & 0xFF) | ((in_buff[ix++] & 0xFF) << 8)
                         | ((in_buff[ix++] & 0xFF) << 16);
-                if (x > 0x7FFFFF)
+                if (x > 0x7FFFFF) {
                     x -= 0x1000000;
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFF);
+                }
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFF);
             }
             return out_buff;
         }
@@ -518,9 +435,10 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                int x = (int) (in_buff[ix++] * (float)0x7FFFFF);
-                if (x < 0)
+                int x = (int) (in_buff[ix++] * (float) 0x7FFFFF);
+                if (x < 0) {
                     x += 0x1000000;
+                }
                 out_buff[ox++] = (byte) x;
                 out_buff[ox++] = (byte) (x >>> 8);
                 out_buff[ox++] = (byte) (x >>> 16);
@@ -529,8 +447,8 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 24 bit, signed, big-endian
     private static class AudioFloatConversion24SB extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
@@ -538,9 +456,10 @@ public abstract class TarsosDSPAudioFloatConverter {
             for (int i = 0; i < out_len; i++) {
                 int x = ((in_buff[ix++] & 0xFF) << 16)
                         | ((in_buff[ix++] & 0xFF) << 8) | (in_buff[ix++] & 0xFF);
-                if (x > 0x7FFFFF)
+                if (x > 0x7FFFFF) {
                     x -= 0x1000000;
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFF);
+                }
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFF);
             }
             return out_buff;
         }
@@ -550,9 +469,10 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                int x = (int) (in_buff[ix++] * (float)0x7FFFFF);
-                if (x < 0)
+                int x = (int) (in_buff[ix++] * (float) 0x7FFFFF);
+                if (x < 0) {
                     x += 0x1000000;
+                }
                 out_buff[ox++] = (byte) (x >>> 16);
                 out_buff[ox++] = (byte) (x >>> 8);
                 out_buff[ox++] = (byte) x;
@@ -561,8 +481,8 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 24 bit, unsigned, little-endian
     private static class AudioFloatConversion24UL extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
@@ -571,7 +491,7 @@ public abstract class TarsosDSPAudioFloatConverter {
                 int x = (in_buff[ix++] & 0xFF) | ((in_buff[ix++] & 0xFF) << 8)
                         | ((in_buff[ix++] & 0xFF) << 16);
                 x -= 0x7FFFFF;
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFF);
             }
             return out_buff;
         }
@@ -581,7 +501,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                int x = (int) (in_buff[ix++] * (float)0x7FFFFF);
+                int x = (int) (in_buff[ix++] * (float) 0x7FFFFF);
                 x += 0x7FFFFF;
                 out_buff[ox++] = (byte) x;
                 out_buff[ox++] = (byte) (x >>> 8);
@@ -591,8 +511,8 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 24 bit, unsigned, big-endian
     private static class AudioFloatConversion24UB extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
@@ -601,7 +521,7 @@ public abstract class TarsosDSPAudioFloatConverter {
                 int x = ((in_buff[ix++] & 0xFF) << 16)
                         | ((in_buff[ix++] & 0xFF) << 8) | (in_buff[ix++] & 0xFF);
                 x -= 0x7FFFFF;
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFF);
             }
             return out_buff;
         }
@@ -611,7 +531,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                int x = (int) (in_buff[ix++] * (float)0x7FFFFF);
+                int x = (int) (in_buff[ix++] * (float) 0x7FFFFF);
                 x += 0x7FFFFF;
                 out_buff[ox++] = (byte) (x >>> 16);
                 out_buff[ox++] = (byte) (x >>> 8);
@@ -621,14 +541,8 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    /***************************************************************************
-     * 
-     * 32 bit signed/unsigned, little/big-endian
-     * 
-     **************************************************************************/
-
-    // PCM 32 bit, signed, little-endian
     private static class AudioFloatConversion32SL extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
@@ -637,7 +551,7 @@ public abstract class TarsosDSPAudioFloatConverter {
                 final int x = (in_buff[ix++] & 0xFF) | ((in_buff[ix++] & 0xFF) << 8) |
                         ((in_buff[ix++] & 0xFF) << 16) |
                         ((in_buff[ix++] & 0xFF) << 24);
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFFFF);
             }
             return out_buff;
         }
@@ -647,7 +561,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                final int x = (int) (in_buff[ix++] * (float)0x7FFFFFFF);
+                final int x = (int) (in_buff[ix++] * (float) 0x7FFFFFFF);
                 out_buff[ox++] = (byte) x;
                 out_buff[ox++] = (byte) (x >>> 8);
                 out_buff[ox++] = (byte) (x >>> 16);
@@ -657,8 +571,8 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 32 bit, signed, big-endian
     private static class AudioFloatConversion32SB extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
@@ -667,7 +581,7 @@ public abstract class TarsosDSPAudioFloatConverter {
                 final int x = ((in_buff[ix++] & 0xFF) << 24) |
                         ((in_buff[ix++] & 0xFF) << 16) |
                         ((in_buff[ix++] & 0xFF) << 8) | (in_buff[ix++] & 0xFF);
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFFFF);
             }
             return out_buff;
         }
@@ -677,7 +591,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                final int x = (int) (in_buff[ix++] * (float)0x7FFFFFFF);
+                final int x = (int) (in_buff[ix++] * (float) 0x7FFFFFFF);
                 out_buff[ox++] = (byte) (x >>> 24);
                 out_buff[ox++] = (byte) (x >>> 16);
                 out_buff[ox++] = (byte) (x >>> 8);
@@ -687,18 +601,18 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 32 bit, unsigned, little-endian
     private static class AudioFloatConversion32UL extends TarsosDSPAudioFloatConverter {
+
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
                                     final float[] out_buff, final int out_offset, final int out_len) {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < out_len; i++) {
                 int x = (in_buff[ix++] & 0xFF) | ((in_buff[ix++] & 0xFF) << 8) |
-                        ((in_buff[ix++] & 0xFF) << 16) | 
+                        ((in_buff[ix++] & 0xFF) << 16) |
                         ((in_buff[ix++] & 0xFF) << 24);
                 x -= 0x7FFFFFFF;
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFFFF);
             }
             return out_buff;
         }
@@ -708,7 +622,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                int x = (int) (in_buff[ix++] * (float)0x7FFFFFFF);
+                int x = (int) (in_buff[ix++] * (float) 0x7FFFFFFF);
                 x += 0x7FFFFFFF;
                 out_buff[ox++] = (byte) x;
                 out_buff[ox++] = (byte) (x >>> 8);
@@ -719,7 +633,6 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 32 bit, unsigned, big-endian
     private static class AudioFloatConversion32UB extends TarsosDSPAudioFloatConverter {
 
         public float[] toFloatArray(final byte[] in_buff, final int in_offset,
@@ -731,7 +644,7 @@ public abstract class TarsosDSPAudioFloatConverter {
                         ((in_buff[ix++] & 0xFF) << 16) |
                         ((in_buff[ix++] & 0xFF) << 8) | (in_buff[ix++] & 0xFF);
                 x -= 0x7FFFFFFF;
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFFFF);
             }
             return out_buff;
         }
@@ -741,7 +654,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                int x = (int) (in_buff[ix++] * (float)0x7FFFFFFF);
+                int x = (int) (in_buff[ix++] * (float) 0x7FFFFFFF);
                 x += 0x7FFFFFFF;
                 out_buff[ox++] = (byte) (x >>> 24);
                 out_buff[ox++] = (byte) (x >>> 16);
@@ -752,18 +665,11 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    /***************************************************************************
-     * 
-     * 32+ bit signed/unsigned, little/big-endian
-     * 
-     **************************************************************************/
-
-    // PCM 32+ bit, signed, little-endian
     private static class AudioFloatConversion32xSL extends TarsosDSPAudioFloatConverter {
 
         final int xbytes;
 
-        public AudioFloatConversion32xSL(final int xbytes) {
+        AudioFloatConversion32xSL(final int xbytes) {
             this.xbytes = xbytes;
         }
 
@@ -776,7 +682,7 @@ public abstract class TarsosDSPAudioFloatConverter {
                 final int x = (in_buff[ix++] & 0xFF) | ((in_buff[ix++] & 0xFF) << 8)
                         | ((in_buff[ix++] & 0xFF) << 16)
                         | ((in_buff[ix++] & 0xFF) << 24);
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFFFF);
             }
             return out_buff;
         }
@@ -786,7 +692,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                final int x = (int) (in_buff[ix++] * (float)0x7FFFFFFF);
+                final int x = (int) (in_buff[ix++] * (float) 0x7FFFFFFF);
                 for (int j = 0; j < xbytes; j++) {
                     out_buff[ox++] = 0;
                 }
@@ -799,12 +705,11 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 32+ bit, signed, big-endian
     private static class AudioFloatConversion32xSB extends TarsosDSPAudioFloatConverter {
 
         final int xbytes;
 
-        public AudioFloatConversion32xSB(final int xbytes) {
+        AudioFloatConversion32xSB(final int xbytes) {
             this.xbytes = xbytes;
         }
 
@@ -818,7 +723,7 @@ public abstract class TarsosDSPAudioFloatConverter {
                         | ((in_buff[ix++] & 0xFF) << 8)
                         | (in_buff[ix++] & 0xFF);
                 ix += xbytes;
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFFFF);
             }
             return out_buff;
         }
@@ -828,7 +733,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                final int x = (int) (in_buff[ix++] * (float)0x7FFFFFFF);
+                final int x = (int) (in_buff[ix++] * (float) 0x7FFFFFFF);
                 out_buff[ox++] = (byte) (x >>> 24);
                 out_buff[ox++] = (byte) (x >>> 16);
                 out_buff[ox++] = (byte) (x >>> 8);
@@ -841,12 +746,11 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 32+ bit, unsigned, little-endian
     private static class AudioFloatConversion32xUL extends TarsosDSPAudioFloatConverter {
 
         final int xbytes;
 
-        public AudioFloatConversion32xUL(final int xbytes) {
+        AudioFloatConversion32xUL(final int xbytes) {
             this.xbytes = xbytes;
         }
 
@@ -860,7 +764,7 @@ public abstract class TarsosDSPAudioFloatConverter {
                         | ((in_buff[ix++] & 0xFF) << 16)
                         | ((in_buff[ix++] & 0xFF) << 24);
                 x -= 0x7FFFFFFF;
-                out_buff[ox++] = x * (1.0f / (float)0x7FFFFFFF);
+                out_buff[ox++] = x * (1.0f / (float) 0x7FFFFFFF);
             }
             return out_buff;
         }
@@ -870,7 +774,7 @@ public abstract class TarsosDSPAudioFloatConverter {
             int ix = in_offset;
             int ox = out_offset;
             for (int i = 0; i < in_len; i++) {
-                int x = (int) (in_buff[ix++] * (float)0x7FFFFFFF);
+                int x = (int) (in_buff[ix++] * (float) 0x7FFFFFFF);
                 x += 0x7FFFFFFF;
                 for (int j = 0; j < xbytes; j++) {
                     out_buff[ox++] = 0;
@@ -884,12 +788,11 @@ public abstract class TarsosDSPAudioFloatConverter {
         }
     }
 
-    // PCM 32+ bit, unsigned, big-endian
     private static class AudioFloatConversion32xUB extends TarsosDSPAudioFloatConverter {
 
         final int xbytes;
 
-        public AudioFloatConversion32xUB(final int xbytes) {
+        AudioFloatConversion32xUB(final int xbytes) {
             this.xbytes = xbytes;
         }
 
@@ -929,9 +832,10 @@ public abstract class TarsosDSPAudioFloatConverter {
 
     public static TarsosDSPAudioFloatConverter getConverter(final TarsosDSPAudioFormat format) {
         TarsosDSPAudioFloatConverter conv = null;
-        if (format.getFrameSize() == 0)
+        if (format.getFrameSize() == 0) {
             return null;
-        if (format.getFrameSize() != 
+        }
+        if (format.getFrameSize() !=
                 ((format.getSampleSizeInBits() + 7) / 8) * format.getChannels()) {
             return null;
         }
@@ -940,29 +844,29 @@ public abstract class TarsosDSPAudioFloatConverter {
                 if (format.getSampleSizeInBits() <= 8) {
                     conv = new AudioFloatConversion8S();
                 } else if (format.getSampleSizeInBits() > 8 &&
-                      format.getSampleSizeInBits() <= 16) {
+                        format.getSampleSizeInBits() <= 16) {
                     conv = new AudioFloatConversion16SB();
                 } else if (format.getSampleSizeInBits() > 16 &&
-                      format.getSampleSizeInBits() <= 24) {
+                        format.getSampleSizeInBits() <= 24) {
                     conv = new AudioFloatConversion24SB();
                 } else if (format.getSampleSizeInBits() > 24 &&
-                      format.getSampleSizeInBits() <= 32) {
+                        format.getSampleSizeInBits() <= 32) {
                     conv = new AudioFloatConversion32SB();
                 } else if (format.getSampleSizeInBits() > 32) {
                     conv = new AudioFloatConversion32xSB(((format
                             .getSampleSizeInBits() + 7) / 8) - 4);
-                } 
+                }
             } else {
                 if (format.getSampleSizeInBits() <= 8) {
                     conv = new AudioFloatConversion8S();
                 } else if (format.getSampleSizeInBits() > 8 &&
-                         format.getSampleSizeInBits() <= 16) {
+                        format.getSampleSizeInBits() <= 16) {
                     conv = new AudioFloatConversion16SL();
                 } else if (format.getSampleSizeInBits() > 16 &&
-                         format.getSampleSizeInBits() <= 24) {
+                        format.getSampleSizeInBits() <= 24) {
                     conv = new AudioFloatConversion24SL();
                 } else if (format.getSampleSizeInBits() > 24 &&
-                         format.getSampleSizeInBits() <= 32) {
+                        format.getSampleSizeInBits() <= 32) {
                     conv = new AudioFloatConversion32SL();
                 } else if (format.getSampleSizeInBits() > 32) {
                     conv = new AudioFloatConversion32xSL(((format
@@ -1005,15 +909,17 @@ public abstract class TarsosDSPAudioFloatConverter {
             }
         } else if (format.getEncoding().equals(PCM_FLOAT)) {
             if (format.getSampleSizeInBits() == 32) {
-                if (format.isBigEndian())
+                if (format.isBigEndian()) {
                     conv = new AudioFloatConversion32B();
-                else
+                } else {
                     conv = new AudioFloatConversion32L();
+                }
             } else if (format.getSampleSizeInBits() == 64) {
-                if (format.isBigEndian()) 
+                if (format.isBigEndian()) {
                     conv = new AudioFloatConversion64B();
-                else 
-                    conv = new AudioFloatConversion64L();                
+                } else {
+                    conv = new AudioFloatConversion64L();
+                }
             }
 
         }
@@ -1024,56 +930,12 @@ public abstract class TarsosDSPAudioFloatConverter {
             conv = new AudioFloatLSBFilter(conv, format);
         }
 
-        if (conv != null)
-            conv.format = format;
         return conv;
     }
 
-    private TarsosDSPAudioFormat format;
-
-    public TarsosDSPAudioFormat getFormat() {
-        return format;
-    }
-
     public abstract float[] toFloatArray(byte[] in_buff, int in_offset,
-            float[] out_buff, int out_offset, int out_len);
-
-    public float[] toFloatArray(final byte[] in_buff, final float[] out_buff,
-                                final int out_offset, final int out_len) {
-        return toFloatArray(in_buff, 0, out_buff, out_offset, out_len);
-    }
-
-    public float[] toFloatArray(final byte[] in_buff, final int in_offset,
-                                final float[] out_buff, final int out_len) {
-        return toFloatArray(in_buff, in_offset, out_buff, 0, out_len);
-    }
-
-    public float[] toFloatArray(final byte[] in_buff, final float[] out_buff, final int out_len) {
-        return toFloatArray(in_buff, 0, out_buff, 0, out_len);
-    }
-
-    public float[] toFloatArray(final byte[] in_buff, final float[] out_buff) {
-        return toFloatArray(in_buff, 0, out_buff, 0, out_buff.length);
-    }
+                                         float[] out_buff, int out_offset, int out_len);
 
     public abstract byte[] toByteArray(float[] in_buff, int in_offset,
-            int in_len, byte[] out_buff, int out_offset);
-
-    public byte[] toByteArray(final float[] in_buff, final int in_len, final byte[] out_buff,
-                              final int out_offset) {
-        return toByteArray(in_buff, 0, in_len, out_buff, out_offset);
-    }
-
-    public byte[] toByteArray(final float[] in_buff, final int in_offset, final int in_len,
-                              final byte[] out_buff) {
-        return toByteArray(in_buff, in_offset, in_len, out_buff, 0);
-    }
-
-    public byte[] toByteArray(final float[] in_buff, final int in_len, final byte[] out_buff) {
-        return toByteArray(in_buff, 0, in_len, out_buff, 0);
-    }
-
-    public byte[] toByteArray(final float[] in_buff, final byte[] out_buff) {
-        return toByteArray(in_buff, 0, in_buff.length, out_buff, 0);
-    }
+                                       int in_len, byte[] out_buff, int out_offset);
 }
