@@ -9,15 +9,18 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.Chronometer;
 import android.widget.TextView;
 
 import com.example.mvmax.speakrecognition.speakrecognition.RecordingMFCCService;
 
-public class BindingActivity extends Activity {
+public class MainActivity extends Activity {
 
     BroadcastReceiver receiver;
     RecordingMFCCService mService;
@@ -28,25 +31,53 @@ public class BindingActivity extends Activity {
     Button btnStartRecording;
     Button btnStopRecording;
     TextView txtMessage;
+    TextView result;
+
+    boolean mSpeakingSignal;
+    private int speakingSeconds;
+
+    private Chronometer mChronometer;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mChronometer = findViewById(R.id.chronometer);
         btnStartRecording = findViewById(R.id.btnStartRecording);
         btnStopRecording = findViewById(R.id.btnStopRecording);
         txtMessage = findViewById(R.id.txtMessage);
+        result = findViewById(R.id.result);
 
         btnStartRecording.setOnClickListener(new OnClickListener() {
 
             @Override
             public void onClick(final View v) {
-
                 if (mService.isDispatcherNull()) {
                     mService.initDispatcher();
                     mService.startMfccExtraction();
                     mService.startPitchDetection();
+
+                    mChronometer.setBase(SystemClock.elapsedRealtime());
+                    mChronometer.start();
+
+                    mChronometer.setOnChronometerTickListener(new Chronometer.OnChronometerTickListener() {
+
+                        @Override
+                        public void onChronometerTick(final Chronometer chronometer) {
+                            final long elapsedMillis = SystemClock.elapsedRealtime() - mChronometer.getBase();
+
+                            Log.d("thecriser", elapsedMillis + "");
+
+                            if (mSpeakingSignal) {
+                                speakingSeconds++;
+
+                                result.setText(speakingSeconds + "");
+                            }
+
+                            mSpeakingSignal = false;
+                        }
+                    });
                 } else {
                     intentBindService = new Intent(getApplicationContext(), RecordingMFCCService.class);
                     bindService(intentBindService, mConnection, Context.BIND_AUTO_CREATE);
@@ -58,6 +89,9 @@ public class BindingActivity extends Activity {
 
             @Override
             public void onClick(final View v) {
+                mChronometer.stop();
+                mChronometer.setBase(SystemClock.elapsedRealtime());
+
                 if (isBound) {
                     unbindService(mConnection);
                     isBound = false;
@@ -75,9 +109,15 @@ public class BindingActivity extends Activity {
 
             @Override
             public void onReceive(final Context context, final Intent intent) {
-                final String msgFromService = intent.getStringExtra(RecordingMFCCService.COPA_MESSAGE);
+                final boolean speakingSignal = intent.getBooleanExtra(RecordingMFCCService.SPEAKING_SIGNAL_MESSAGE, false);
 
-                txtMessage.setText(msgFromService);
+                if (speakingSignal) {
+                    mSpeakingSignal = true;
+
+                    txtMessage.setText("Speaking");
+                } else {
+                    txtMessage.setText("Silent");
+                }
             }
         };
 

@@ -23,7 +23,7 @@ public class RecordingMFCCService extends Service {
 
     LocalBroadcastManager broadcaster;
     public static final String COPA_RESULT = "com.example.tarsosaudioproject.RecordingMFCCService.REQUEST_PROCESSED";
-    public static final String COPA_MESSAGE = "UINotification";
+    public static final String SPEAKING_SIGNAL_MESSAGE = "UINotification";
 
     final int samplesPerFrame = 512;
     final int sampleRate = 16000;
@@ -99,22 +99,18 @@ public class RecordingMFCCService extends Service {
             public void handlePitch(final PitchDetectionResult pitchDetectionResult, final AudioEvent audioEvent) {
                 final float pitchInHz = pitchDetectionResult.getPitch();
 
-                if (pitchInHz == -1) {
-                    sendResult("Silent");
+                if (pitchInHz != -1) {
+                    sendSpeakingSignal(true);
                 } else {
-                    sendResult("Speaking");
+                    sendSpeakingSignal(false);
                 }
             }
         }));
     }
 
-    public void sendResult(final String message) {
+    public void sendSpeakingSignal(final boolean pBoolean) {
         final Intent intent = new Intent(COPA_RESULT);
-
-        if (message != null) {
-            intent.putExtra(COPA_MESSAGE, message);
-        }
-
+        intent.putExtra(SPEAKING_SIGNAL_MESSAGE, pBoolean);
         broadcaster.sendBroadcast(intent);
     }
 }
