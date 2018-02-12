@@ -32,6 +32,9 @@ public class RecordingMFCCService extends Service {
     float lowerFilterFreq = 133.3334f;
     float upperFilterFreq = ((float) sampleRate) / 2f;
 
+    private static int MAX_HZ = 1000;
+    private static int MIN_HZ = 100;
+
     public RecordingMFCCService() {
     }
 
@@ -99,7 +102,7 @@ public class RecordingMFCCService extends Service {
             public void handlePitch(final PitchDetectionResult pitchDetectionResult, final AudioEvent audioEvent) {
                 final float pitchInHz = pitchDetectionResult.getPitch();
 
-                if (pitchInHz != -1) {
+                if (pitchInHz >= MIN_HZ && pitchInHz <= MAX_HZ) {
                     sendSpeakingSignal(true);
                 } else {
                     sendSpeakingSignal(false);
